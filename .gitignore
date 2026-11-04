@@ -1,0 +1,21 @@
+# 构建产物
+/target/
+
+# 本地开发与预览文件
+/examples/
+/preview.jpg
+/card-full.jpg
+
+# 运行期临时目录（宿主临时目录不可用时的回退位置）与本地文件
+.musiccard-tmp/
+*.tmp
+*.log
+.env
+.env.*
+*.local.toml
+
+# 编辑器与系统文件
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
