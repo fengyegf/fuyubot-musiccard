@@ -15,46 +15,48 @@ jobs:
         include:
           - os: windows-latest
             platform: windows-x86_64
+            android: false
           - os: ubuntu-latest
             platform: linux-x86_64
+            android: false
           - os: macos-14
             platform: macos-aarch64
+            android: false
+          - os: ubuntu-latest
+            platform: android
+            android: true
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Build
+      - name: Install Android targets
+        if: ${{ matrix.android }}
+        run: rustup target add aarch64-linux-android x86_64-linux-android
+      - uses: nttld/setup-ndk@v1
+        if: ${{ matrix.android }}
+        id: ndk
+        with:
+          ndk-version: r27c
+      - name: Install cargo-ndk
+        if: ${{ matrix.android }}
+        run: cargo install cargo-ndk --locked
+      - name: Build native
+        if: ${{ !matrix.android }}
         run: cargo build --release
-      - name: Package
+      - name: Build Android
+        if: ${{ matrix.android }}
+        run: >-
+          cargo ndk -t arm64-v8a -t x86_64 --platform 24
+          build --release
+      - name: Package native
+        if: ${{ !matrix.android }}
         shell: bash
         run: >-
           python scripts/package.py
           --platform "${{ matrix.platform }}"
           --version "$GITHUB_REF_NAME"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.platform }}
-          path: dist/*.zip
-          if-no-files-found: error
-
-  android:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-linux-android,x86_64-linux-android
-      - uses: nttld/setup-ndk@v1
-        id: ndk
-        with:
-          ndk-version: r27c
-      - name: Install cargo-ndk
-        run: cargo install cargo-ndk --locked
-      - name: Build Android
-        run: >-
-          cargo ndk -t arm64-v8a -t x86_64 --platform 24
-          build --release
       - name: Package Android
+        if: ${{ matrix.android }}
         shell: bash
         run: |
           python scripts/package.py \
@@ -65,12 +67,12 @@ jobs:
             --version "$GITHUB_REF_NAME"
       - uses: actions/upload-artifact@v4
         with:
-          name: android
+          name: ${{ matrix.platform }}
           path: dist/*.zip
           if-no-files-found: error
 
   release:
-    needs: [build, android]
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
