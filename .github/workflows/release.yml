@@ -1,0 +1,82 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows-x86_64
+          - os: ubuntu-latest
+            platform: linux-x86_64
+          - os: macos-14
+            platform: macos-aarch64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build
+        run: cargo build --release
+      - name: Package
+        shell: bash
+        run: >-
+          python scripts/package.py
+          --platform "${{ matrix.platform }}"
+          --version "$GITHUB_REF_NAME"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}
+          path: dist/*.zip
+          if-no-files-found: error
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+      - uses: nttld/setup-ndk@v1
+        id: ndk
+        with:
+          ndk-version: r27c
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+      - name: Build Android
+        run: >-
+          cargo ndk -t arm64-v8a -t x86_64 --platform 24
+          build --release
+      - name: Package Android
+        shell: bash
+        run: |
+          python scripts/package.py \
+            --platform android-aarch64 \
+            --version "$GITHUB_REF_NAME"
+          python scripts/package.py \
+            --platform android-x86_64 \
+            --version "$GITHUB_REF_NAME"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: dist/*.zip
+          if-no-files-found: error
+
+  release:
+    needs: [build, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip

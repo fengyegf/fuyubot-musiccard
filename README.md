@@ -46,6 +46,9 @@
 | `src/render/` | HTML 版面、二维码、背景与最终图片合成 |
 | `src/model.rs` | 跨模块共享的数据结构 |
 | `src/util/` | 文本处理等通用工具 |
+| `plugin.json` | 插件商城 bundle 清单 |
+| `scripts/package.py` | 按平台生成发布 ZIP |
+| `.github/workflows/release.yml` | tag 触发多平台构建与 Release |
 
 ## 配置
 
@@ -87,6 +90,46 @@ yank，因此不要直接删除锁文件或执行 `cargo update`。
 ```powershell
 ..\..\fuyubot-sdk.exe check target\release\musiccard.dll
 ```
+
+## 发布包
+
+商城使用按平台打包的 ZIP。Windows x86_64 本地打包示例：
+
+```powershell
+python scripts\package.py --platform windows-x86_64 --version 0.1.0
+```
+
+产物位于：
+
+```text
+dist/musiccard-0.1.0-windows-x86_64.zip
+```
+
+ZIP 根目录直接包含 `plugin.json` 与 `bin/musiccard.dll`，不会额外套目录。Linux、
+macOS 和 Android 使用同一个脚本，仅切换 `--platform`。
+
+Android 需要 Rust Android targets、Android NDK 和 `cargo-ndk`：
+
+```powershell
+rustup target add aarch64-linux-android x86_64-linux-android
+cargo install cargo-ndk --locked
+cargo ndk -t arm64-v8a -t x86_64 --platform 24 build --release
+python scripts\package.py --platform android-aarch64 --version 0.1.0
+python scripts\package.py --platform android-x86_64 --version 0.1.0
+```
+
+Android 包内入口为 `bin/libmusiccard.so`，不能复用 Linux 构建产物。
+
+推送 `v<版本>` tag 时，GitHub Actions 会构建 Windows、Linux、macOS 和两个 Android
+目标并打包，然后把 ZIP 上传到对应 Release：
+
+```powershell
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+商城收录还需要在 `FuyuBot-plugins` 仓库提交一个 `plugins/musiccard.yml` 条目，
+引用该 Release 中的 ZIP 文件名。
 
 ## 安装
 

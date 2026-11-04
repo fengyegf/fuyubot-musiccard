@@ -1,5 +1,6 @@
 # 构建产物
 /target/
+/dist/
 
 # 本地开发与预览文件
 /examples/
