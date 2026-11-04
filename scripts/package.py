@@ -95,8 +95,19 @@ def main() -> int:
 
     with zipfile.ZipFile(archive_path) as archive:
         names = set(archive.namelist())
-        if "plugin.json" not in names or entry not in names:
-            raise SystemExit("生成的 ZIP 缺少 plugin.json 或 entry")
+        expected_names = {"plugin.json", entry}
+        if names != expected_names:
+            raise SystemExit(
+                f"生成的 ZIP 内容不正确，期望 {sorted(expected_names)}，"
+                f"实际 {sorted(names)}"
+            )
+        packaged_manifest = json.loads(archive.read("plugin.json"))
+        if packaged_manifest.get("version") != version:
+            raise SystemExit("生成的 ZIP 中 version 与命令行版本不一致")
+        if packaged_manifest.get("platforms") != [args.platform]:
+            raise SystemExit("生成的 ZIP 中 platforms 与目标平台不一致")
+        if packaged_manifest.get("entry") != entry:
+            raise SystemExit("生成的 ZIP 中 entry 与目标文件不一致")
 
     size_mb = archive_path.stat().st_size / (1024 * 1024)
     print(f"[OK] {archive_path} ({size_mb:.1f} MiB)")

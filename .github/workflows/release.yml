@@ -23,7 +23,14 @@ jobs:
             platform: macos-aarch64
             android: false
           - os: ubuntu-latest
-            platform: android
+            platform: android-aarch64
+            android_target: arm64-v8a
+            rust_target: aarch64-linux-android
+            android: true
+          - os: ubuntu-latest
+            platform: android-x86_64
+            android_target: x86_64
+            rust_target: x86_64-linux-android
             android: true
     runs-on: ${{ matrix.os }}
     steps:
@@ -31,7 +38,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Install Android targets
         if: ${{ matrix.android }}
-        run: rustup target add aarch64-linux-android x86_64-linux-android
+        run: rustup target add "${{ matrix.rust_target }}"
       - uses: nttld/setup-ndk@v1
         if: ${{ matrix.android }}
         id: ndk
@@ -46,7 +53,7 @@ jobs:
       - name: Build Android
         if: ${{ matrix.android }}
         run: >-
-          cargo ndk -t arm64-v8a -t x86_64 --platform 24
+          cargo ndk -t "${{ matrix.android_target }}" --platform 24
           build --release
       - name: Package native
         if: ${{ !matrix.android }}
@@ -58,13 +65,10 @@ jobs:
       - name: Package Android
         if: ${{ matrix.android }}
         shell: bash
-        run: |
-          python scripts/package.py \
-            --platform android-aarch64 \
-            --version "$GITHUB_REF_NAME"
-          python scripts/package.py \
-            --platform android-x86_64 \
-            --version "$GITHUB_REF_NAME"
+        run: >-
+          python scripts/package.py
+          --platform "${{ matrix.platform }}"
+          --version "$GITHUB_REF_NAME"
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}

@@ -120,6 +120,10 @@ python scripts\package.py --platform android-x86_64 --version 0.1.0
 
 Android 包内入口为 `bin/libmusiccard.so`，不能复用 Linux 构建产物。
 
+GitHub Actions 页面下载到的 artifact 文件本身会被 GitHub 再包一层 ZIP；真正用于安装
+的是其中的 `musiccard-<version>-<platform>.zip`，或者是对应 Release 页面里的同名
+资产。不要把 Actions artifact 外层文件直接作为插件包安装。
+
 推送 `v<版本>` tag 时，GitHub Actions 会构建 Windows、Linux、macOS 和两个 Android
 目标并打包，然后把 ZIP 上传到对应 Release：
 
